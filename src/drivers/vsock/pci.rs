@@ -3,18 +3,9 @@ use crate::drivers::pci::PciDevice;
 use crate::drivers::virtio::error::{self, VirtioError};
 use crate::drivers::virtio::transport::pci;
 use crate::drivers::virtio::transport::pci::{PciCap, UniCapsColl};
-use crate::drivers::vsock::{EventQueue, RxQueue, TxQueue, VirtioVsockDriver, VsockDevCfg};
-
-/// Virtio's socket device configuration structure.
-/// See specification v1.1. - 5.11.4
-///
-#[derive(Debug, Copy, Clone)]
-#[repr(C)]
-pub(crate) struct VsockDevCfgRaw {
-	/// The guest_cid field contains the guest’s context ID, which uniquely identifies the device
-	/// for its lifetime. The upper 32 bits of the CID are reserved and zeroed.
-	pub guest_cid: u64,
-}
+use crate::drivers::vsock::{
+	EventQueue, RxQueue, TxQueue, VirtioVsockDriver, VsockDevCfg, VsockDevCfgRaw,
+};
 
 impl VirtioVsockDriver {
 	fn map_cfg(cap: &PciCap) -> Option<VsockDevCfg> {

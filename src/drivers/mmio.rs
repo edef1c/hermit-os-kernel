@@ -1,3 +1,6 @@
+#[cfg(any(feature = "virtio-console", feature = "virtio-vsock"))]
+use alloc::collections::VecDeque;
+
 use ahash::RandomState;
 use hashbrown::HashMap;
 
@@ -5,8 +8,11 @@ use hashbrown::HashMap;
 pub(crate) use crate::arch::kernel::mmio::get_console_driver;
 #[cfg(feature = "virtio-fs")]
 pub(crate) use crate::arch::kernel::mmio::get_filesystem_driver;
+#[cfg(feature = "virtio-vsock")]
+pub(crate) use crate::arch::kernel::mmio::get_vsock_driver;
 #[cfg(any(
 	feature = "virtio-console",
+	feature = "virtio-vsock",
 	all(target_arch = "riscv64", feature = "gem-net", not(feature = "pci")),
 	feature = "virtio-net",
 	feature = "virtio-fs",
@@ -69,6 +75,25 @@ pub(crate) fn get_interrupt_handlers() -> HashMap<InterruptLine, InterruptHandle
 			.entry(irq_number)
 			.or_default()
 			.push_back(fuse_handler);
+	}
+
+	#[cfg(feature = "virtio-vsock")]
+	if let Some(drv) = get_vsock_driver() {
+		fn vsock_handler() {
+			if let Some(driver) = get_vsock_driver() {
+				driver.lock().handle_interrupt();
+			}
+		}
+
+		let irq_number = drv.lock().get_interrupt_number();
+
+		if let Some(map) = handlers.get_mut(&irq_number) {
+			map.push_back(vsock_handler);
+		} else {
+			let mut map: InterruptHandlerQueue = VecDeque::new();
+			map.push_back(vsock_handler);
+			handlers.insert(irq_number, map);
+		}
 	}
 
 	handlers

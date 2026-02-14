@@ -64,7 +64,7 @@ virtio = ["dep:virtio", "dep:mem-barrier"]
 virtio-console = ["virtio"]
 virtio-fs = ["virtio", "dep:fuse-abi", "fuse-abi/num_enum"]
 virtio-net = ["net", "virtio"]
-virtio-vsock = ["virtio", "pci"]
+virtio-vsock = ["virtio"]
 warn-prebuilt = []
 
 # Deprecated

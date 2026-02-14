@@ -1,30 +1,44 @@
 #![allow(dead_code)]
 
-#[cfg(feature = "pci")]
-pub mod pci;
+cfg_if::cfg_if! {
+	if #[cfg(feature = "pci")] {
+		pub mod pci;
+	} else {
+		mod mmio;
+	}
+}
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::mem;
 
-use pci_types::InterruptLine;
 use smallvec::SmallVec;
 use virtio::vsock::Hdr;
 
 use super::virtio::virtqueue::VirtQueue;
 use crate::config::VIRTIO_MAX_QUEUE_SIZE;
-use crate::drivers::Driver;
 use crate::drivers::virtio::ControlRegisters;
 use crate::drivers::virtio::error::VirtioVsockError;
+#[cfg(not(feature = "pci"))]
+use crate::drivers::virtio::transport::mmio::{ComCfg, IsrStatus, NotifCfg};
 #[cfg(feature = "pci")]
 use crate::drivers::virtio::transport::pci::{ComCfg, IsrStatus, NotifCfg};
 use crate::drivers::virtio::virtqueue::split::SplitVq;
 use crate::drivers::virtio::virtqueue::{
 	AvailBufferToken, BufferElem, BufferType, UsedBufferToken, Virtq,
 };
-#[cfg(feature = "pci")]
-use crate::drivers::vsock::pci::VsockDevCfgRaw;
+use crate::drivers::{Driver, InterruptLine};
 use crate::mm::device_alloc::DeviceAlloc;
+
+/// Virtio's socket device configuration structure.
+/// See specification v1.1. - 5.11.4
+#[derive(Debug, Copy, Clone)]
+#[repr(C)]
+pub(crate) struct VsockDevCfgRaw {
+	/// The guest_cid field contains the guest's context ID, which uniquely identifies the device
+	/// for its lifetime. The upper 32 bits of the CID are reserved and zeroed.
+	pub guest_cid: u64,
+}
 
 fn fill_queue(vq: &mut VirtQueue, num_packets: u16, packet_size: u32) {
 	for _ in 0..num_packets {
