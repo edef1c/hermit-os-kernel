@@ -296,11 +296,18 @@ impl ComCfg {
 	}
 
 	/// Resets the device status field to zero.
+	///
+	/// Per virtio spec 4.1.4.3.2, the driver MUST wait for a read of
+	/// device_status to return 0 before reinitializing the device.
 	pub fn reset_dev(&mut self) {
 		self.com_cfg
 			.as_mut_ptr()
 			.device_status()
 			.write(DeviceStatus::empty());
+
+		while self.com_cfg.as_ptr().device_status().read() != DeviceStatus::empty() {
+			core::hint::spin_loop();
+		}
 	}
 
 	/// Sets the device status field to FAILED.
